@@ -6,3 +6,4 @@ data/processed
 logs
 predictions
 __pycache__
+.venv
