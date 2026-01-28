@@ -1,0 +1,55 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: python-handwriting-api:latest
+    container_name: python-handwriting-api
+    restart: unless-stopped
+    
+    # Working directory
+    working_dir: /app
+    
+    # Mount volumes
+    volumes:
+      - ./app:/app
+      - python-packages:/home/appuser/.local
+      # Mount for temporary handwriting files
+      - handwriting-temp:/tmp
+    
+    # Environment variables
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    
+    # Port mapping (host:container)
+    ports:
+      - "9025:8000"
+    
+    # Command to run FastAPI
+    command: python app.py
+    
+    # Network mode
+    networks:
+      - app-network
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    
+
+# Named volumes
+volumes:
+  python-packages:
+    driver: local
+  handwriting-temp:
+    driver: local
+
+# Networks
+networks:
+  app-network:
+    driver: bridge
