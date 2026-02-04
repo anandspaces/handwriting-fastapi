@@ -32,6 +32,7 @@ class SynthesizeRequest(BaseModel):
     style: Optional[int] = Field(9, description="Handwriting style (0-27)", ge=0, le=27)
     stroke_color: Optional[str] = Field("black", description="SVG stroke color")
     stroke_width: Optional[int] = Field(2, description="SVG stroke width", ge=1, le=10)
+    font_size: Optional[float] = Field(1.5, description="Font size scaling factor (0.5-3.0, default 1.5)", ge=0.5, le=3.0)
     
     @field_validator('text')
     @classmethod
@@ -76,6 +77,7 @@ async def synthesize_handwriting(request: SynthesizeRequest):
     - **style**: Handwriting style 0-27 (default 9)
     - **stroke_color**: SVG stroke color (default "black")
     - **stroke_width**: SVG stroke width (default 2)
+    - **font_size**: Font size scaling factor (0.5-3.0, default 1.5)
     
     Returns SVG image data.
     """
@@ -88,6 +90,7 @@ async def synthesize_handwriting(request: SynthesizeRequest):
         styles = [request.style] * len(lines)
         stroke_colors = [request.stroke_color] * len(lines)
         stroke_widths = [request.stroke_width] * len(lines)
+        font_sizes = [request.font_size] * len(lines)
         
         # Generate temporary filename
         temp_filename = f"/tmp/handwriting_{os.getpid()}.svg"
@@ -99,7 +102,8 @@ async def synthesize_handwriting(request: SynthesizeRequest):
             biases=biases,
             styles=styles,
             stroke_colors=stroke_colors,
-            stroke_widths=stroke_widths
+            stroke_widths=stroke_widths,
+            font_sizes=font_sizes
         )
         
         # Read the SVG file

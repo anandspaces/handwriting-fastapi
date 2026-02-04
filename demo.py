@@ -38,7 +38,7 @@ class Hand(object):
         )
         self.nn.restore()
 
-    def write(self, filename, lines, biases=None, styles=None, stroke_colors=None, stroke_widths=None):
+    def write(self, filename, lines, biases=None, styles=None, stroke_colors=None, stroke_widths=None, font_sizes=None):
         valid_char_set = set(drawing.alphabet)
         for line_num, line in enumerate(lines):
             if len(line) > 75:
@@ -59,7 +59,7 @@ class Hand(object):
                     )
 
         strokes = self._sample(lines, biases=biases, styles=styles)
-        self._draw(strokes, lines, filename, stroke_colors=stroke_colors, stroke_widths=stroke_widths)
+        self._draw(strokes, lines, filename, stroke_colors=stroke_colors, stroke_widths=stroke_widths, font_sizes=font_sizes)
 
     def _sample(self, lines, biases=None, styles=None):
         num_samples = len(lines)
@@ -107,9 +107,10 @@ class Hand(object):
         samples = [sample[~np.all(sample == 0.0, axis=1)] for sample in samples]
         return samples
 
-    def _draw(self, strokes, lines, filename, stroke_colors=None, stroke_widths=None):
+    def _draw(self, strokes, lines, filename, stroke_colors=None, stroke_widths=None, font_sizes=None):
         stroke_colors = stroke_colors or ['black']*len(lines)
         stroke_widths = stroke_widths or [2]*len(lines)
+        font_sizes = font_sizes or [1.5]*len(lines)
 
         line_height = 60
         view_width = 1000
@@ -120,13 +121,13 @@ class Hand(object):
         # Removed white background rectangle to enable transparent SVG output
 
         initial_coord = np.array([0, -(3*line_height / 4)])
-        for offsets, line, color, width in zip(strokes, lines, stroke_colors, stroke_widths):
+        for offsets, line, color, width, size in zip(strokes, lines, stroke_colors, stroke_widths, font_sizes):
 
             if not line:
                 initial_coord[1] -= line_height
                 continue
 
-            offsets[:, :2] *= 1.5
+            offsets[:, :2] *= size
             strokes = drawing.offsets_to_coords(offsets)
             strokes = drawing.denoise(strokes)
             strokes[:, :2] = drawing.align(strokes[:, :2])
