@@ -9,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     WORKERS=4 \
-    TIMEOUT=120
+    TIMEOUT=1800
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -49,12 +49,10 @@ EXPOSE 8000
 # --workers: Number of parallel worker processes
 # --worker-class: Use Uvicorn workers for async support
 # --timeout: Request timeout
-CMD gunicorn app:app \
-    --bind 0.0.0.0:8000 \
+# Replace the CMD in your Dockerfile with:
+CMD uvicorn app:app \
+    --host 0.0.0.0 \
+    --port 8000 \
     --workers ${WORKERS} \
-    --worker-class uvicorn.workers.UvicornWorker \
-    --timeout ${TIMEOUT} \
-    --preload \
-    --access-logfile - \
-    --error-logfile - \
+    --timeout-keep-alive ${TIMEOUT} \
     --log-level info
