@@ -11,20 +11,23 @@ from pydantic import BaseModel, Field, field_validator
 from demo import Hand
 
 
-# Initialize the Hand model once at startup (will be shared across workers with gunicorn --preload)
-hand = None
+# ============================================================================
+# CRITICAL: Load model at MODULE LEVEL for Gunicorn --preload to work
+# This ensures the model is loaded ONCE in the master process before forking
+# ============================================================================
+print(f"[MODULE INIT] Loading handwriting synthesis model in process {os.getpid()}...")
+hand = Hand()
+print(f"[MODULE INIT] Model loaded successfully in process {os.getpid()}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    global hand
-    print(f"Loading handwriting synthesis model in process {os.getpid()}...")
-    hand = Hand()
-    print(f"Model loaded successfully in process {os.getpid()}")
+    # Model already loaded at module level
+    print(f"[WORKER {os.getpid()}] Application startup - using preloaded model")
     yield
-    # Shutdown (cleanup if needed)
-    print(f"Shutting down process {os.getpid()}")
-    hand = None
+    # Shutdown
+    print(f"[WORKER {os.getpid()}] Application shutdown")
+
 
 app = FastAPI(
     title="Handwriting Synthesis API",

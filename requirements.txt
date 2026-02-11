@@ -37,6 +37,7 @@ userpath==1.8.0
 watchdog==2.2.1
 fastapi
 uvicorn[standard]
+gunicorn
 requests
 svgwrite
 tensorflow
