@@ -12,10 +12,13 @@ services:
     
     # Mount volumes
     volumes:
-      - ./app:/app
+      # Comment out or remove this line - it's overwriting your /app directory
+      # - .:/app
       - python-packages:/home/appuser/.local
       # Mount for temporary handwriting files
       - handwriting-temp:/tmp
+      # Create a volume for logs if you want to persist them
+      - ./logs:/app/logs
     
     # Environment variables
     environment:
@@ -32,15 +35,6 @@ services:
     # Network mode
     networks:
       - app-network
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
-    
 
 # Named volumes
 volumes:

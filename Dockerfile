@@ -18,20 +18,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements file
 COPY requirements.txt .
 
+# Upgrade pip and install build dependencies (including Cython for PyYAML)
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel Cython
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Create a non-root user early
+RUN useradd -m -u 1000 appuser
 
-# Create a non-root user
-RUN useradd -m -u 1000 appuser && \
+# Create necessary directories with proper permissions
+RUN mkdir -p /tmp /app/logs && \
+    chmod 1777 /tmp && \
     chown -R appuser:appuser /app
+
+# Copy application code
+COPY --chown=appuser:appuser . .
 
 # Switch to non-root user
 USER appuser
 
+# Expose port
 EXPOSE 8000
 
-# Default command (can be overridden)
+# Default command
 CMD ["python", "app.py"]
