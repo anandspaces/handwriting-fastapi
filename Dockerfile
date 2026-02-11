@@ -21,8 +21,9 @@ COPY requirements.txt .
 # Upgrade pip and install build dependencies (including Cython for PyYAML)
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel Cython
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (including gunicorn)
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir gunicorn
 
 # Create a non-root user early
 RUN useradd -m -u 1000 appuser
@@ -41,5 +42,5 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Default command
+# Default command (will be overridden by docker-compose)
 CMD ["python", "app.py"]

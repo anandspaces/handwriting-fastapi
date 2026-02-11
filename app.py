@@ -1,7 +1,8 @@
-import io
 import os
+import uuid
 from typing import Optional
-
+from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -10,10 +11,26 @@ from pydantic import BaseModel, Field, field_validator
 from demo import Hand
 
 
+# Initialize the Hand model once at startup (will be shared across workers with gunicorn --preload)
+hand = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    global hand
+    print(f"Loading handwriting synthesis model in process {os.getpid()}...")
+    hand = Hand()
+    print(f"Model loaded successfully in process {os.getpid()}")
+    yield
+    # Shutdown (cleanup if needed)
+    print(f"Shutting down process {os.getpid()}")
+    hand = None
+
 app = FastAPI(
     title="Handwriting Synthesis API",
     description="Generate handwritten text as SVG using neural networks",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Add CORS middleware for browser access
@@ -47,23 +64,23 @@ class SynthesizeRequest(BaseModel):
         return v
 
 
-# Initialize the Hand model once at startup
-hand = None
-
-@app.on_event("startup")
-async def startup_event():
-    global hand
-    print("Loading handwriting synthesis model...")
-    hand = Hand()
-    print("Model loaded successfully!")
-
-
 @app.get("/")
 async def root():
     return {
         "message": "Handwriting Synthesis API",
         "docs": "/docs",
-        "endpoint": "POST /synthesize"
+        "endpoint": "POST /synthesize",
+        "process_id": os.getpid()
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "model_loaded": hand is not None,
+        "process_id": os.getpid()
     }
 
 
@@ -81,6 +98,12 @@ async def synthesize_handwriting(request: SynthesizeRequest):
     
     Returns SVG image data.
     """
+    if hand is None:
+        raise HTTPException(status_code=503, detail="Model not loaded yet")
+    
+    # Use UUID for guaranteed unique filename (prevents race conditions)
+    temp_filename = f"/tmp/handwriting_{uuid.uuid4()}.svg"
+    
     try:
         # Split text into lines
         lines = request.text.split('\n')
@@ -91,9 +114,6 @@ async def synthesize_handwriting(request: SynthesizeRequest):
         stroke_colors = [request.stroke_color] * len(lines)
         stroke_widths = [request.stroke_width] * len(lines)
         font_sizes = [request.font_size] * len(lines)
-        
-        # Generate temporary filename
-        temp_filename = f"/tmp/handwriting_{os.getpid()}.svg"
         
         # Generate handwriting
         hand.write(
@@ -110,9 +130,6 @@ async def synthesize_handwriting(request: SynthesizeRequest):
         with open(temp_filename, 'r') as f:
             svg_content = f.read()
         
-        # Clean up temporary file
-        os.remove(temp_filename)
-        
         # Return SVG with proper content type
         return Response(content=svg_content, media_type="image/svg+xml")
         
@@ -120,6 +137,13 @@ async def synthesize_handwriting(request: SynthesizeRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating handwriting: {str(e)}")
+    finally:
+        # Always cleanup temp file, even if an error occurred
+        if Path(temp_filename).exists():
+            try:
+                os.remove(temp_filename)
+            except Exception as e:
+                print(f"Warning: Failed to remove temp file {temp_filename}: {e}")
 
 
 if __name__ == "__main__":

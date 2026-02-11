@@ -12,8 +12,6 @@ services:
     
     # Mount volumes
     volumes:
-      # Comment out or remove this line - it's overwriting your /app directory
-      # - .:/app
       - python-packages:/home/appuser/.local
       # Mount for temporary handwriting files
       - handwriting-temp:/tmp
@@ -24,13 +22,39 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
+      # Number of worker processes
+      # With --preload, model is loaded once and shared (copy-on-write)
+      - WORKERS=4
+      # Worker timeout (increase if model loading is slow)
+      - TIMEOUT=120
+      # Worker class for async support
+      - WORKER_CLASS=uvicorn.workers.UvicornWorker
     
     # Port mapping (host:container)
     ports:
       - "9025:8000"
     
-    # Command to run FastAPI
-    command: python app.py
+    # Use Gunicorn with --preload for shared model memory
+    # --preload loads app before forking workers (shared memory via copy-on-write)
+    # This means the model is loaded ONCE, not per worker
+    command: >
+      sh -c "gunicorn app:app
+      --bind 0.0.0.0:8000
+      --workers $${WORKERS:-4}
+      --worker-class $${WORKER_CLASS:-uvicorn.workers.UvicornWorker}
+      --timeout $${TIMEOUT:-120}
+      --preload
+      --access-logfile -
+      --error-logfile -
+      --log-level info"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     
     # Network mode
     networks:

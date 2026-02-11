@@ -102,6 +102,41 @@ uv run uvicorn app:app --reload
 uv run python test_api.py
 ```
 
+## Running with multiple workers (parallel requests)
+
+To handle many frontend or external clients in parallel, run the API with **multiple Uvicorn workers**. Each worker can process a request at the same time.
+
+### Docker (recommended)
+
+The `docker-compose` setup runs with **4 workers** by default. Uvicorn distributes incoming requests across workers so parallel calls get faster responses.
+
+```bash
+docker compose up --build
+```
+
+**Tuning workers**
+
+- **More workers** = more concurrent requests, but **higher RAM** (each worker loads the TensorFlow model).
+- Set the `WORKERS` env in `docker-compose.yml` or override when starting:
+
+```bash
+# Use 2 workers (e.g. if the host has limited RAM)
+WORKERS=2 docker compose up --build
+
+# Or in docker-compose.yml under app.environment:
+# - WORKERS=2
+```
+
+### Local (without Docker)
+
+Run Uvicorn with `--workers`:
+
+```bash
+uv run uvicorn app:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+Use fewer workers (e.g. `--workers 2`) if you run out of memory, since each process loads the model.
+
 ## Technical Details
 
 - Built with FastAPI and TensorFlow 2.x
